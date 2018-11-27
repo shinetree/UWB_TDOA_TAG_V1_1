@@ -9,3 +9,4 @@ tag/USER/SPI.map
 tag/USER/SPI.uvoptx
 tag/USER/startup_stm32f10x_md.lst
 tag/USER/sssaw.map
+tag/USER/RTE/RTE_Components.h
