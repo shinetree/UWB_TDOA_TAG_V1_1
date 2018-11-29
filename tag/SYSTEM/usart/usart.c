@@ -6,7 +6,12 @@
 ////////////////////////////////////////////////////////////////////////////////// 	 
 //如果使用ucos,则包括下面的头文件即可.
 #if SYSTEM_SUPPORT_OS
-#include "includes.h"					//ucos 使用	  
+	#if OS_FREE_RTOS
+		#include "FreeRTOS.h"
+		#include "task.h"					//freertos 使用	  
+	#elif OS_UCOS
+		#include "includes.h"					//ucos 使用	  
+	#endif
 #endif
 
 
@@ -25,7 +30,7 @@ FILE __stdout;
 //定义_sys_exit()以避免使用半主机模式    
 _sys_exit(int x) 
 { 
-	x = x; 
+	x = x; 	 
 } 
 //重定义fputc函数 
 int fputc(int ch, FILE *f)
@@ -141,7 +146,11 @@ void USART1_IRQHandler(void)                	//串口1中断服务程序
 {
 	u8 Res;
 #if SYSTEM_SUPPORT_OS 		//如果SYSTEM_SUPPORT_OS为真，则需要支持OS.
-	OSIntEnter();    
+	#if OS_FREE_RTOS
+		;
+	#elif OS_UCOS
+		OSIntEnter(); 
+	#endif
 #endif
 	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)  //接收中断(接收到的数据必须是0x0d 0x0a结尾)
 	{
@@ -173,7 +182,7 @@ void USART1_IRQHandler(void)                	//串口1中断服务程序
 			if(Check_cmd(USART_RX_BUF)==SW)
 			{
 				//printf("AT+SW=OK\r\n\r\n\r\n");	
-//				Sleep(200);
+//				delay_ms(200);
 				FLAH_BUFF0[2] = GetRecSwtich(USART_RX_BUF);//数据装入
 				My_STMFLASH_Write();//写入Flash
 				USART_RX_STA=0;	
@@ -182,7 +191,11 @@ void USART1_IRQHandler(void)                	//串口1中断服务程序
 		}		
   } 
 #if SYSTEM_SUPPORT_OS 	//如果SYSTEM_SUPPORT_OS为真，则需要支持OS.
-	OSIntExit();  											 
+  	#if OS_FREE_RTOS
+		;
+	#elif OS_UCOS
+		OSIntExit();  											 
+	#endif
 #endif
 } 
 #endif	

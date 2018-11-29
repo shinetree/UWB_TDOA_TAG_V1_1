@@ -41,7 +41,7 @@
 //#include <sys/stat.h>
 //#include <sys/time.h>
 //#include <sys/times.h>
-//#define Sleep(x)            usleep((x*1000))
+//#define delay_ms(x)            usleep((x*1000))
 //#define __align4            __attribute__((aligned (4)))
 //#define __weak              __attribute__((weak))
 //#ifndef __always_inline
@@ -61,7 +61,7 @@
 //#define __align4            /* to be defined? */
 //#define __weak              /* to be defined? */
 //#define _exit               __exit
-//#define Sleep(x)            usleep((x*1000))
+//#define delay_ms(x)            usleep((x*1000))
 //#include "sleep.h"
 //#endif
 
@@ -79,7 +79,7 @@
 //#define __IO        volatile
 //#endif
 
-///* Redefine CLOCKS_PER_SEC to make it work with Sleep(1) */
+///* Redefine CLOCKS_PER_SEC to make it work with delay_ms(1) */
 //#undef CLOCKS_PER_SEC
 //#define CLOCKS_PER_SEC      1000
 

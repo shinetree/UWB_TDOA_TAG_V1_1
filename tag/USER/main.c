@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <stdio.h>
 #include "led.h"
 #include "delay.h"
 #include "sys.h"
@@ -12,6 +14,13 @@
 #include "dma.h"
 #include "deca_regs.h"
 #include "hw_config.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "timers.h"
+#include "semphr.h"
+
+
 #define TX_ANT_DLY 0
 #define RX_ANT_DLY 0
 #define BLINK_FRAME_SN_IDX 1
@@ -30,6 +39,8 @@ static uint8 dummy_buffer[DUMMY_BUFFER_LEN];
 
 #define TAG_DDRL 0xD0;         /*低位标签地址*/
 #define TAG_DDRH 0x01;         /*高位标签地址*/
+__IO unsigned long time32_incr;
+
  static dwt_config_t config = {
     2,               /* Channel number. */
     DWT_PRF_64M,     /* Pulse repetition frequency. */
@@ -43,8 +54,92 @@ static uint8 dummy_buffer[DUMMY_BUFFER_LEN];
     1,
 	  1057 
 };
+ struct base_task_t
+{
+  TaskHandle_t          thread;
+  QueueHandle_t        evtq;
+  
+  bool             isactive;
+};
+ struct base_task_t base_task;
 
+void vApplicationIdleHook( void )
+{
+	vTaskResume(base_task.thread);
+}
 
+//void SysTick_Handler(void)
+//{
+//	time32_incr++;	
+//}
+void vApplicationTickHook(void)
+{
+	time32_incr++;
+}
+
+void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)
+{
+   /* Run time stack overflow checking is performed if
+   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
+   called if a stack overflow is detected. */
+  __nop;
+}
+
+void  base_task_thead(void * arg)
+{
+		uint8 t1[5];
+		base_task.isactive = 1;
+		while (base_task.isactive)
+	  {
+			 if(compensate_flag==0)
+			 {
+					dwt_writetxdata(sizeof(tx_msg), tx_msg, 0); 
+					dwt_writetxfctrl(sizeof(tx_msg), 0);     
+					dwt_starttx(DWT_START_TX_IMMEDIATE);
+					while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS))
+					{
+					};
+					led_off(LED_ALL);
+					dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
+					vTaskDelay(1000/Frequency_parameter);
+					led_on(LED_ALL);
+//					dwt_readtxtimestamp(t1);
+//					memcpy(&tx_msg[4], t1, 5);
+//					USB_TxWrite(&tx_msg[1],1);
+					USB_TxWrite(tx_msg,7);
+					tx_msg[1]++;
+					dwt_spicswakeup(dummy_buffer, DUMMY_BUFFER_LEN);
+			 }
+       else
+       {
+			    dwt_writetxdata(sizeof(location_compensate), location_compensate, 0); 
+					dwt_writetxfctrl(sizeof(location_compensate), 0);     
+					dwt_starttx(DWT_START_TX_IMMEDIATE);
+					while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS))
+					{
+					};
+					dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
+					vTaskDelay(1000/Frequency_parameter);
+					dwt_readtxtimestamp(t1);
+					memcpy(&location_compensate[4], t1, 5);
+					USB_TxWrite(&location_compensate[1],1);
+					USB_TxWrite(&location_compensate[4],5);
+					location_compensate[1]++;
+			 }				 
+	}
+}
+uint32_t base_task_start ()
+{
+  if (base_task.isactive)
+    return 1;
+
+  // Start execution.
+  if (pdPASS != xTaskCreate (base_task_thead, "BASE", 256, &base_task, 4, &base_task.thread))
+  {
+    return 1;
+  }
+  return 0;
+}
 
 int main(void)
 {
@@ -53,14 +148,14 @@ int main(void)
 	  u16 panID=0xdeca;
 	  u8 source[8];
 	  uint8 eui64[8]={0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};	
-		uint8 t1[5];	
+		delay_init();
 		uart_init(115200);	 //串口初始化为115200 	
 		GPIO_Configuration();//初始化与LED连接的硬件接口
 		SPI_Configuration();
 		peripherals_init();
-		Sleep(1000);
+		delay_ms(1000);
 		Flash_Configuration();
-		Sleep(200);
+		delay_ms(200);
 		USB_Config();
 		MYDMA_Config(DMA1_Channel4,(u32)&USART1->DR,(u32)SendBuff,130);//DMA1通道4,外设为串口1,存储器为SendBuff,长度130.  
 		USART_DMACmd(USART1,USART_DMAReq_Tx,ENABLE); //使能串口1的DMA发送  
@@ -68,7 +163,7 @@ int main(void)
 		SPI_ConfigFastRate(SPI_BaudRatePrescaler_32);
 		reset_DW1000(); 	
 		port_SPIx_clear_chip_select();
-		Sleep(110);
+		delay_ms(110);
 		port_SPIx_set_chip_select();
 		if (dwt_initialise(DWT_LOADUCODE | DWT_LOADLDOTUNE | DWT_LOADTXCONFIG | DWT_LOADANTDLY| DWT_LOADXTALTRIM)  == DWT_ERROR)
 		{	
@@ -77,9 +172,9 @@ int main(void)
 			while (i--)
 			{
 				led_on(LED_ALL);
-				Sleep(100);
+				delay_ms(100);
 				led_off(LED_ALL);
-				Sleep(100);
+				delay_ms(100);
 			};
 		}
  	  dwt_setleds(3) ; 
@@ -96,7 +191,7 @@ int main(void)
 			while (i--)
 			{
 				led_on(LED_ALL);
-				Sleep(1000);
+				delay_ms(1000);
 				led_off(LED_ALL);
 			};
 		}
@@ -119,44 +214,13 @@ int main(void)
 		dwt_spicswakeup(dummy_buffer, DUMMY_BUFFER_LEN);
 		dwt_configuresleep(DWT_PRESRV_SLEEP | DWT_CONFIG, DWT_WAKE_CS | DWT_SLP_EN);
 		dwt_entersleepaftertx(1);    //自动睡眠
-		while (1)
-	  {
-			 if(compensate_flag==0)
-			 {
-					dwt_writetxdata(sizeof(tx_msg), tx_msg, 0); 
-					dwt_writetxfctrl(sizeof(tx_msg), 0);     
-					dwt_starttx(DWT_START_TX_IMMEDIATE);
-					while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS))
-					{
-					};
-					led_off(LED_ALL);
-					dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
-					Sleep(1000/Frequency_parameter);
-					led_on(LED_ALL);
-//					dwt_readtxtimestamp(t1);
-//					memcpy(&tx_msg[4], t1, 5);
-//					USB_TxWrite(&tx_msg[1],1);
-					USB_TxWrite(tx_msg,7);
-					tx_msg[1]++;
-					dwt_spicswakeup(dummy_buffer, DUMMY_BUFFER_LEN);
-			 }
-       else
-       {
-			    dwt_writetxdata(sizeof(location_compensate), location_compensate, 0); 
-					dwt_writetxfctrl(sizeof(location_compensate), 0);     
-					dwt_starttx(DWT_START_TX_IMMEDIATE);
-					while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS))
-					{
-					};
-					dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
-					Sleep(1000/Frequency_parameter);
-					dwt_readtxtimestamp(t1);
-					memcpy(&location_compensate[4], t1, 5);
-					USB_TxWrite(&location_compensate[1],1);
-					USB_TxWrite(&location_compensate[4],5);
-					location_compensate[1]++;
-			 }				 
-	}
+		base_task_start();
+		vTaskStartScheduler();
+    while(1)
+    {
+       
+    }
+		
 }
 
 	

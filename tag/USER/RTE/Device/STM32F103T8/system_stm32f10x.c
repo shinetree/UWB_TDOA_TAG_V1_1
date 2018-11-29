@@ -8,6 +8,7 @@
   * 
   * 1.  This file provides two functions and one global variable to be called from 
   *     user application:
+#include "stm32f10x_exti.h"             // Keil::Device:StdPeriph Drivers:EXTI
   *      - SystemInit(): Setups the system clock (System clock source, PLL Multiplier
   *                      factors, AHB/APBx prescalers and Flash settings). 
   *                      This function is called at startup just after reset and 

@@ -24,7 +24,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h" 
 #include "port.h" 
-__IO unsigned long time32_incr;
+//__IO unsigned long time32_incr;
  
 void NMI_Handler(void)
 {
@@ -63,22 +63,22 @@ void UsageFault_Handler(void)
   }
 }
  
-void SVC_Handler(void)
-{
-}
+//void SVC_Handler(void)
+//{
+//}
  
 void DebugMon_Handler(void)
 {
 }
  
-void PendSV_Handler(void)
-{
-}
+//void PendSV_Handler(void)
+//{
+//}
  
-void SysTick_Handler(void)
-{
-		time32_incr++;
-}
+//void SysTick_Handler(void)
+//{
+//		time32_incr++;
+//}
 
 void EXTI15_10_IRQHandler(void)
 {
