@@ -316,7 +316,7 @@ void reset_DW1000(void)
 
 	//drive the RSTn pin low
 	GPIO_ResetBits(DW1000_RSTn_GPIO, DW1000_RSTn);
-
+	delay_ms(2);
 	//put the pin back to tri-state ... as input
 	GPIO_InitStructure.GPIO_Pin = DW1000_RSTn;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
